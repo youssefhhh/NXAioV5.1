@@ -516,9 +516,9 @@ body{
         <h1 class="hdr-name">NX AIO</h1>
         <div class="hdr-sub">Select your PUBG version below</div>
       </div>
-      <div class="status-pill">
-        <div class="spill-dot"></div>
-        Ready
+      <div class="status-pill" id="gameloop-status" style="background: rgba(251,113,133,.07); border-color: rgba(251,113,133,.2); color: rgba(251,113,133,1);">
+        <div class="spill-dot" id="gameloop-dot" style="background: rgba(251,113,133,1); box-shadow: 0 0 8px rgba(251,113,133,.75); animation: none;"></div>
+        <span id="gameloop-text">Disconnected</span>
       </div>
     </div>
 
@@ -553,6 +553,16 @@ body{
 
     <!-- Super Boost -->
     <div class="slabel s3">Quick Actions</div>
+    
+    <!-- Restore Delay Slider -->
+    <div class="delay-wrap s3" style="margin-top: -4px; margin-bottom: 12px; padding: 10px 14px; background: rgba(0,0,0,0.28); border: 1px solid var(--c-border2); border-radius: 12px; display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 2;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.62rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Restore Content Delay</span>
+        <span id="delayVal" style="font-size: 0.68rem; font-weight: 800; color: rgba(var(--cyan), 1); font-family: monospace;">10 seconds</span>
+      </div>
+      <input type="range" id="delaySlider" min="1" max="20" value="10" style="width: 100%; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; outline: none; -webkit-appearance: none; cursor: pointer; accent-color: rgba(var(--cyan), 1);">
+    </div>
+
     <button class="btn-super s3" type="button" data-action="SUPER_BOOST" id="superBoostBtn">
       <div class="super-ico">
         <svg viewBox="0 0 24 24">
@@ -733,7 +743,13 @@ body{
   }
   function postAction(action){
     try{localStorage.setItem(STORAGE_KEY,variant)}catch(e){}
-    var msg=action+'|'+variant;
+    var finalAction = action;
+    if (action === 'SUPER_BOOST') {
+      var slider = document.getElementById('delaySlider');
+      var delay = slider ? slider.value : '10';
+      finalAction = 'SUPER_BOOST|' + delay;
+    }
+    var msg=finalAction+'|'+variant;
     if(window.chrome&&window.chrome.webview&&typeof window.chrome.webview.postMessage==='function'){
       window.chrome.webview.postMessage(msg);
     }
@@ -745,6 +761,52 @@ body{
       postAction(this.getAttribute('data-action'));
     });
   });
+
+  /* Gameloop Connection Status Updater */
+  window.setGameloopStatus = function(connected) {
+    var pill = document.getElementById('gameloop-status');
+    var dot = document.getElementById('gameloop-dot');
+    var text = document.getElementById('gameloop-text');
+    if (!pill || !dot || !text) return;
+    
+    if (connected) {
+      pill.style.background = 'rgba(52,211,153,.07)';
+      pill.style.borderColor = 'rgba(52,211,153,.2)';
+      pill.style.color = 'rgba(52,211,153,1)';
+      dot.style.background = 'rgba(52,211,153,1)';
+      dot.style.boxShadow = '0 0 8px rgba(52,211,153,.75)';
+      dot.style.animation = 'blip 2.2s ease-in-out infinite';
+      text.textContent = 'Connected';
+    } else {
+      pill.style.background = 'rgba(251,113,133,.07)';
+      pill.style.borderColor = 'rgba(251,113,133,.2)';
+      pill.style.color = 'rgba(251,113,133,1)';
+      dot.style.background = 'rgba(251,113,133,1)';
+      dot.style.boxShadow = '0 0 8px rgba(251,113,133,.75)';
+      dot.style.animation = 'none';
+      text.textContent = 'Disconnected';
+    }
+  };
+
+  // Check ADB status immediately on load
+  setTimeout(function() {
+    postAction('CHECK_ADB_STATUS');
+  }, 100);
+
+  /* Restore Delay Slider Wiring */
+  var delaySlider = document.getElementById('delaySlider');
+  var delayVal = document.getElementById('delayVal');
+  if (delaySlider && delayVal) {
+    var savedDelay = localStorage.getItem('nxaio_restore_delay');
+    if (savedDelay) {
+      delaySlider.value = savedDelay;
+      delayVal.textContent = savedDelay + ' seconds';
+    }
+    delaySlider.addEventListener('input', function() {
+      delayVal.textContent = this.value + ' seconds';
+      localStorage.setItem('nxaio_restore_delay', this.value);
+    });
+  }
 })();
 </script>
 </body>
